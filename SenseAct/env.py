@@ -46,7 +46,7 @@ class ReacherEnv(gym.core.Env):
         self.action_space = spaces.Box(low=-np.pi, high=np.pi, shape=(1,))
 
         # TODO: you define the observation space - specify dimensions here
-        self.observation_space = spaces.Box(low=np.inf, high=np.inf, shape=(3,))
+        self.observation_space = spaces.Box(low=np.inf, high=np.inf, shape=(4,))
 
         #self.reset()
 
@@ -74,8 +74,11 @@ class ReacherEnv(gym.core.Env):
         
         obs = self.read()
         ret_obs = self._make_observation(obs)
+        ret_obs = np.append(ret_obs, [0]) # first previous action
+        
+        reward_at_start = self.compute_reward(obs)
 
-        return ret_obs
+        return ret_obs, reward_at_start
 
 
 
@@ -116,7 +119,6 @@ class ReacherEnv(gym.core.Env):
         """
         read_block = MX64.subblock('goal_pos', 'present_pos', ret_dxl_type=self.driver.is_ctypes_driver)
         dict_obs = dxl.read(self.driver, self.port, 1, read_block)
-        dict_obs['target_pos'] = self.target
         return dict_obs
 
 
@@ -192,6 +194,7 @@ class ReacherEnv(gym.core.Env):
         obs = self.read()
 
         observation = self._make_observation(obs)
+        observation = np.append(observation, [action]) # previous action        
         reward = self.compute_reward(obs)
         done = self._is_done()
         
@@ -217,6 +220,6 @@ class ReacherEnv(gym.core.Env):
         # MX64["present_speed"].unit.y_max
         # See dxl_mx64 for the complete list of registers.
         # TODO: create your observation
-        obs = np.array([dxl_observation['present_pos'], dxl_observation['target_pos'], dxl_observation['target_pos'] - dxl_observation['present_pos']])
+        obs = np.array([dxl_observation['present_pos'], self.target, self.target - dxl_observation['present_pos']])
         return obs
 

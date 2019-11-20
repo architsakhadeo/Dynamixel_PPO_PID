@@ -13,7 +13,7 @@ class PIDReacherEnv(ReacherEnv):
 
     def __init__(self, cycle_time, ep_time, driver, idn, port_str, baud, max_action):
         super(PIDReacherEnv, self).__init__(cycle_time, ep_time, driver, idn, port_str, baud, max_action)
-        self.observation_space = spaces.Box(low=np.inf, high=np.inf, shape=(3,))
+        self.observation_space = spaces.Box(low=np.inf, high=np.inf, shape=(4,))
 
     #def _make_observation(self, dxl_observation: dict):
     #    current_pos = dxl_observation["present_pos"]
@@ -50,37 +50,36 @@ if __name__ == "__main__":
     error_prior = 0
     integral = 0
     derivative = 0
-    action_prior = 0
+    #action_prior = 0
     for i in range(args.ep_count):
         print(i)
         start = time.time()
         flag = 0
-        observation = env.reset()
+        observation, reward_at_start = env.reset()
         error = observation[2]
+        action_prior = observation[3]
 
-        g = 0.0  # return
-        r = []
+        g = 0.0  # return # g does not include reward_at_start
+        r = [reward_at_start] # only consider this while plotting to show how far the joint was initially from the target
+        print('Reward at start ', reward_at_start)
+
         # TODO: Run one episode of PID control
         while True:
             
             integral = integral + (error*env.cycle_time)
             derivative = derivative +(error)/env.cycle_time
             
-            
             action = kp*error + ki*integral + kd*derivative # + bias
             print('Action ', action, end = '\t')
-            #action = 1
             
             action = action + action_prior
 
             observation, reward, done = env.step(action)
-            action_prior = action
             
-            #error_prior = error
+            action_prior = observation[3]
             error = observation[2]
-            print('Observation ', observation, end='\t')
             
-            #error_prior = error
+            print('Observation ', observation, end='\t')
             
             g += reward
             r.append(reward)
@@ -95,6 +94,7 @@ if __name__ == "__main__":
             
             #time.sleep(env.cycle_time)    
 
+        print('Returns ',g)
         returns.append(g)
         rewards.append(r)
         end = time.time()
@@ -103,6 +103,7 @@ if __name__ == "__main__":
     env.close()
 
     returns = np.array(returns)
+    rewards = np.array(rewards)
     np.save('./returnsoverallepisodes.npy', returns)
     np.save('./rewardsoverallepisodes.npy', rewards)
     avg_return = returns.mean()
